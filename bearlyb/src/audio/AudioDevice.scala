@@ -23,8 +23,7 @@ object AudioDevice:
 
   def formatOf(devid: AudioDeviceID): AudioSpec = withStack:
     val spec = SDL_AudioSpec.malloc
-    SDL_GetAudioDeviceFormat(devid, spec, null)
-      .sdlErrorCheck()
+    SDL_GetAudioDeviceFormat(devid, spec, null).sdlErrorCheck()
     AudioSpec.fromInternal(spec)
 
   object open:
@@ -88,7 +87,7 @@ object AudioDevice:
     def pause(): Unit        = SDL_PauseAudioDevice(dev).sdlErrorCheck()
     def resume(): Unit       = SDL_ResumeAudioDevice(dev).sdlErrorCheck()
     def close(): Unit        = SDL_CloseAudioDevice(dev)
-    def name: String = SDL_GetAudioDeviceName(dev).sdlCreationCheck()
+    def name: String         = SDL_GetAudioDeviceName(dev).sdlCreationCheck()
 
     def bind(stream: AudioStream): Unit =
       SDL_BindAudioStream(dev, stream.internal).sdlErrorCheck()
@@ -103,29 +102,29 @@ object AudioDevice:
       targetBuf.rewind()
       SDL_BindAudioStreams(dev, targetBuf).sdlErrorCheck()
 
-    def channelMap: Option[IArray[Int]] = 
-      SDL_GetAudioDeviceChannelMap(internal).asInstanceOf[java.nio.IntBuffer | Null] match
+    def channelMap: Option[IArray[Int]] = SDL_GetAudioDeviceChannelMap(internal)
+      .asInstanceOf[java.nio.IntBuffer | Null] match
         case null        => None
         case internalMap =>
           val result: Array[Int] = Array.ofDim(internalMap.remaining)
           internalMap.get(0, result)
           SDL_free(internalMap)
           Some(IArray.unsafeFromArray(result))
-    
-    def format: AudioSpec =
-      formatOf(dev)
+
+    def format: AudioSpec = formatOf(dev)
 
     def setPostmixCallback(cb: (AudioSpec, FloatBuffer) => Unit): Unit =
       SDL_SetAudioPostmixCallback(
         dev,
         (_, specptr, bufptr, buflen) =>
-          val buf = MemoryUtil.memFloatBufferSafe(bufptr, buflen).sdlCreationCheck()
-          val spec = AudioSpec.fromInternal(SDL_AudioSpec.createSafe(specptr).sdlCreationCheck())
+          val buf = MemoryUtil.memFloatBufferSafe(bufptr, buflen)
+            .sdlCreationCheck()
+          val spec = AudioSpec
+            .fromInternal(SDL_AudioSpec.createSafe(specptr).sdlCreationCheck())
           cb(spec, buf)
         ,
-        NullPtr,
+        NullPtr
       ).sdlErrorCheck()
-
 
   end extension
 

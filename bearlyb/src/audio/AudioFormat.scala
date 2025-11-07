@@ -35,12 +35,15 @@ object AudioFormat:
 
   val S16: AudioFormat = SDL_AUDIO_S16
   val S32: AudioFormat = SDL_AUDIO_S32
-  val F32: AudioFormat = if ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN then SDL_AUDIO_F32LE else SDL_AUDIO_F32BE
+
+  val F32: AudioFormat =
+    if ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN then SDL_AUDIO_F32LE
+    else SDL_AUDIO_F32BE
 
   def fromInternal(internal: Int): AudioFormat = internal
 
   extension (f: AudioFormat)
     private[bearlyb] def internal: Int = f
-    def name: String = SDL_GetAudioFormatName(f)
+    def name: String                   = SDL_GetAudioFormatName(f)
 
 end AudioFormat

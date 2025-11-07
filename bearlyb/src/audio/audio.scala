@@ -32,18 +32,15 @@ end openAudioDeviceStream
 
 def currentAudioDriver: String | Null = SDL_GetCurrentAudioDriver()
 
-def audioDrivers: Iterator[String] =
-  new Iterator[String]:
-    private val numAudioDrivers = SDL_GetNumAudioDrivers()
-    private var i = 0
+def audioDrivers: Iterator[String] = new Iterator[String]:
+  private val numAudioDrivers = SDL_GetNumAudioDrivers()
+  private var i               = 0
 
-    override def next(): String =
-      if hasNext then
-        val result = SDL_GetAudioDriver(i).sdlCreationCheck()
-        i += 1
-        result
-      else
-        throw java.util.NoSuchElementException("No more audio drivers")
+  override def next(): String =
+    if hasNext then
+      val result = SDL_GetAudioDriver(i).sdlCreationCheck()
+      i += 1
+      result
+    else throw java.util.NoSuchElementException("No more audio drivers")
 
-    override def hasNext: Boolean = i < numAudioDrivers
-
+  override def hasNext: Boolean = i < numAudioDrivers
