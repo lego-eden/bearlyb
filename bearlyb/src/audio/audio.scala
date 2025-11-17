@@ -49,3 +49,4 @@ def audioDrivers: Iterator[String] = new Iterator[String]:
     else throw java.util.NoSuchElementException("No more audio drivers")
 
   override def hasNext: Boolean = i < numAudioDrivers
+end audioDrivers
