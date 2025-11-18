@@ -79,7 +79,6 @@ object Sound:
     case None        =>
       val track = createStream()
       tracks.offer(track)
-      println(s"total number of tracks: ${tracks.size()}")
       track
 
   private def findEmptyStream: Option[AudioStream] =
