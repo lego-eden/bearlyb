@@ -30,7 +30,7 @@ object bearlyb extends LwjglModule, PublishModule, ScalafixModule:
     "-Wall",
     "-Yexplicit-nulls",
     // "-Werror",
-    "-new-syntax"
+    "-new-syntax",
   )
 
   def bearlybPublishAssembly = Task:

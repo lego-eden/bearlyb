@@ -22,16 +22,23 @@ case class Sound(
       val s = Sound.emptyStream
       on(s)
 
-    def on(s: AudioStream): Unit =
+    def on(s: AudioStream, flush: Boolean = true): Unit =
       s.inputFormat = format
       s.gain = gain
       s.freqRatio = freqRatio
       s.put(data)
-      s.flush()
+      if flush then s.flush()
+
+  def prettyString: String =
+    s"""Sound(
+       |  format = ${format.toString},
+       |  data.length = ${data.length},
+       |  gain = $gain,
+       |  freqRatio = $freqRatio
+       |)""".stripMargin
 
 object Sound:
-  soundObject =>
-
+  import scala.collection.mutable.ArrayDeque as MutDeque
   import java.util.concurrent.ConcurrentLinkedQueue as JQueue
 
   object loadWAV:
@@ -85,56 +92,89 @@ object Sound:
     val trackopt = tracks.stream().filter(s => s.available == 0).findFirst()
     Option(trackopt.orElse(null))
 
-  private def createStream(): AudioStream =
+  private def createStream(dev: AudioDevice = this.dev): AudioStream =
     val s = AudioStream()
     s.bind(dev)
     s
 
   class Track private (
       private val s: AudioStream,
-      private val sounds: JQueue[Sound],
-      private var _onEnd: Option[Track => Unit]
+      private val sounds: MutDeque[(repeat: Int, snd: Sound)],
+      private var _onEnd: Option[Track => Unit] = None
   ):
     private var hasEnded = true
 
     s.setGetCallback((stream, additionalAmount, _) =>
-      if additionalAmount > 0 && stream.available == 0 then
-        if !hasEnded then
-          hasEnded = true
-          onEnd.foreach(_(this))
-        Option(sounds.poll()) match
-          case Some(snd) =>
-            hasEnded = false
-            snd.play.on(stream)
-          case None =>
+      if additionalAmount > 0 then
+        lazy val peek = sounds.headOption
+        lazy val sameFormat =
+          peek.map(_.snd.format == s.inputFormat).getOrElse(false)
+
+        if isPlaying && !sameFormat then stream.flush()
+
+        if stream.available == 0 || sameFormat then
+          sounds.removeHeadOption() match
+            case Some(sound @ (repeat, snd)) =>
+              if repeat > 0 then sounds.prepend((repeat - 1, snd)): Unit
+              else if repeat == -1 then sounds.prepend(sound): Unit
+              hasEnded = false
+              snd.play.on(stream, false)
+            case None =>
+          end match
+
+          if !hasEnded && peek.map(_.repeat).getOrElse(0) == 0 then
+            hasEnded = true
+            onEnd.foreach(_(this))
+        end if
+      end if
     )
 
-    def onEnd: Option[Track => Unit] =
+    private def withLock[A](body: => A): A =
       s.lock()
-      val res = _onEnd
-      s.unlock()
-      res
+      try
+        body
+      finally
+        s.unlock()
+
+    def onEnd: Option[Track => Unit] = withLock(_onEnd)
+
     def onEnd_=(cb: Option[Track => Unit]): Unit =
-      s.lock()
-      _onEnd = cb
-      s.unlock()
-    def queue(snd: Sound): Unit = sounds.offer(snd): Unit
+      withLock:
+        _onEnd = cb
+
+    def queue(snd: Sound): Unit =
+      withLock:
+        sounds.append((0, snd)): Unit
+
+    def loop(snd: Sound, n: Int = -1): Unit =
+      assert(n >= 0 || n == -1)
+      withLock:
+        // the looping logic happens inside the get-callback of the audio stream
+        sounds.append((n, snd)): Unit
     def play(snd: Sound): Unit =
-      s.clear()
-      queue(snd)
-    def clear(): Unit =
-      sounds.clear()
-      s.clear()
+      withLock:
+        s.clear()
+        queue(snd)
+
+    /** Clears queued data and the queue of sounds, this makes the stream stop
+      * playing. If you simply want to stop playback, but be able to continue
+      * playing later with the same data, then use [[pause]] instead.
+      */
+    def stop(): Unit =
+      withLock:
+        sounds.clear()
+        s.clear()
+
     def pause(): Unit = s.pause()
+
     def resume(): Unit = s.resume()
+
     def isPlaying: Boolean =
-      s.lock()
-      val res = !hasEnded
-      s.unlock()
-      res
+      withLock(!hasEnded)
 
   object Track:
-    def apply(): Track =
-      val s = soundObject.createStream()
-      new Track(s, JQueue(), None)
+    def create(dev: AudioDevice = Sound.dev): Track =
+      val s = Sound.createStream(dev)
+      new Track(s, MutDeque.empty)
+
 end Sound
