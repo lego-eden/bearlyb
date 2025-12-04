@@ -7,12 +7,13 @@ def helloAudio(): Unit =
 
   val quackPath = os.resource / "quack.wav"
   val quack = Sound.loadWAV(quackPath).get
+  val mixer = Sound.Mixer()
 
   var play = true
   while play do
     readLine("Enter p to play or q to exit\n").toLowerCase match
       case "q" => play = false
-      case "p" => quack.play()
+      case "p" => mixer.play(quack)
       case _   => ()
 
   bl.quit()

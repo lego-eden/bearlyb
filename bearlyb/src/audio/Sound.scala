@@ -17,17 +17,16 @@ case class Sound(
     gain: Float = 1.0f,
     freqRatio: Float = 1.0f
 ):
-  object play:
-    def apply(): Unit =
-      val s = Sound.emptyStream
-      on(s)
+    // def apply(): Unit =
+    //   val s = Sound.emptyStream
+    //   on(s)
 
-    def on(s: AudioStream, flush: Boolean = true): Unit =
-      s.inputFormat = format
-      s.gain = gain
-      s.freqRatio = freqRatio
-      s.put(data)
-      if flush then s.flush()
+  private def playOn(s: AudioStream, flush: Boolean): Unit =
+    s.inputFormat = format
+    s.gain = gain
+    s.freqRatio = freqRatio
+    s.put(data)
+    if flush then s.flush()
 
   def prettyString: String =
     s"""Sound(
@@ -78,21 +77,8 @@ object Sound:
         loadhelper(SDL_LoadWAV_IO(ioStream, true, _, _, _))
       finally memFree(buf)
 
-  // simplified audio system
-  private val dev = AudioDevice.open.defaultPlayback()
-  private val tracks = JQueue[AudioStream]()
-  private def emptyStream: AudioStream = findEmptyStream match
-    case Some(track) => track
-    case None        =>
-      val track = createStream()
-      tracks.offer(track)
-      track
 
-  private def findEmptyStream: Option[AudioStream] =
-    val trackopt = tracks.stream().filter(s => s.available == 0).findFirst()
-    Option(trackopt.orElse(null))
-
-  private def createStream(dev: AudioDevice = this.dev): AudioStream =
+  private def createStream(dev: AudioDevice): AudioStream =
     val s = AudioStream()
     s.bind(dev)
     s
@@ -118,7 +104,7 @@ object Sound:
               if repeat > 0 then sounds.prepend((repeat - 1, snd)): Unit
               else if repeat == -1 then sounds.prepend(sound): Unit
               hasEnded = false
-              snd.play.on(stream, false)
+              snd.playOn(stream, flush = false)
             case None =>
           end match
 
@@ -173,8 +159,34 @@ object Sound:
       withLock(!hasEnded)
 
   object Track:
-    def create(dev: AudioDevice = Sound.dev): Track =
+    def create(dev: AudioDevice = AudioDevice.open.defaultPlayback()): Track =
       val s = Sound.createStream(dev)
       new Track(s, MutDeque.empty)
+
+  end Track
+
+  class Mixer private (
+      private val dev: AudioDevice,
+      private val tracks: JQueue[AudioStream],
+  ):
+    private def emptyStream: AudioStream = findEmptyStream match
+      case Some(track) => track
+      case None        =>
+        val track = createStream(dev)
+        tracks.offer(track)
+        track
+
+    private def findEmptyStream: Option[AudioStream] =
+      val trackopt = tracks.stream().filter(s => s.available == 0).findFirst()
+      Option(trackopt.orElse(null))
+
+
+    def play(snd: Sound): Unit =
+      snd.playOn(emptyStream, flush = true)
+
+  object Mixer:
+    def apply(dev: AudioDevice = AudioDevice.open.defaultPlayback()): Mixer =
+      new Mixer(dev, JQueue())
+  end Mixer
 
 end Sound
