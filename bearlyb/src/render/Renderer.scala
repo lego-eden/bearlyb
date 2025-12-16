@@ -15,6 +15,8 @@ import scala.annotation.targetName
 import scala.util.Using
 
 import Point.*
+import org.lwjgl.util.freetype.FreeType
+import org.lwjgl.util.harfbuzz.HarfBuzz
 
 class Renderer private[render] (private[bearlyb] val internal: Long):
 
@@ -338,6 +340,112 @@ class Renderer private[render] (private[bearlyb] val internal: Long):
       w: Int,
       h: Int
   ): Texture = Texture(this, format, access, w, h)
+
+  // ---------------- MSDF + HarfBuzz pipeline ----------------
+  def renderText(
+      renderer: Renderer,
+      font: Font,
+      text: String,
+      x: Float,
+      y: Float,
+      textSize: Long
+  ) =
+    font.setSize(textSize)
+
+    // --- Shape text with HarfBuzz ---
+    val buffer = HarfBuzz.hb_buffer_create()
+    HarfBuzz.hb_buffer_add_utf8(buffer, text, 0, text.length)
+    HarfBuzz.hb_buffer_set_direction(buffer, HarfBuzz.HB_DIRECTION_LTR)
+    HarfBuzz.hb_buffer_set_script(buffer, HarfBuzz.HB_SCRIPT_LATIN)
+    HarfBuzz.hb_buffer_set_language(
+      buffer,
+      HarfBuzz.hb_language_from_string("en")
+    )
+
+    HarfBuzz.hb_shape(font.hbFontBuffPtr, buffer, null)
+
+    val count = HarfBuzz.hb_buffer_get_length(buffer)
+    val infos = HarfBuzz.hb_buffer_get_glyph_infos(buffer)
+    val positions = HarfBuzz.hb_buffer_get_glyph_positions(buffer)
+
+    var penX = x
+    var penY = y
+
+    for i <- 0 until count do
+      val info = infos.get(i)
+      val pos = positions.get(i)
+      val glyphIndex = info.codepoint()
+
+      // Load glyph into FreeType
+      if FreeType.FT_Load_Glyph(
+          font.face,
+          glyphIndex,
+          FreeType.FT_LOAD_DEFAULT
+        ) != 0
+      then throw RuntimeException(s"Failed to load glyph $glyphIndex")
+
+      FreeType.FT_Render_Glyph(
+        font.face.glyph(),
+        FreeType.FT_RENDER_MODE_NORMAL
+      )
+
+      val slot = font.face.glyph()
+      val bitmap = slot.bitmap()
+      val width = bitmap.width()
+      val rows = bitmap.rows()
+      val pitch = bitmap.pitch()
+
+      if width > 0 && rows > 0 then
+        val bufferPtr = bitmap.buffer(rows * pitch)
+
+        if bufferPtr != null && bufferPtr.remaining() >= rows * pitch then
+          val glyphTex = bearlyb.render.Texture(
+            renderer,
+            PixelFormat.RGBA8888,
+            TextureAccess.Streaming,
+            width,
+            rows
+          )
+
+          glyphTex.blendMode = BlendMode.Blend
+
+          Using.resource(glyphTex.lock()): tex_w =>
+            for row <- 0 until rows; col <- 0 until width do
+              val alpha = (bufferPtr.get(
+                row * pitch + col
+              ) & 0xff)
+
+              val (r, g, b, a) = renderer.drawColor
+
+              val finalAlpha =
+                ((alpha & 0xff) * (a & 0xff) / 255).toInt
+
+              val color = glyphTex.format.mapColor((r, g, b, finalAlpha))
+
+              tex_w(col, row) = color
+
+          val bearingX = slot.bitmap_left()
+          val bearingY = slot.bitmap_top()
+
+          val renderX = (penX + bearingX).toInt
+          val renderY = (penY - bearingY).toInt
+
+          renderer.renderTexture(
+            glyphTex,
+            dst = Rect(renderX, renderY, width, rows)
+          )
+
+      val advanceX = pos.x_advance() / 64.0f
+      val advanceY = pos.y_advance() / 64.0f
+
+      penX += advanceX
+      penY += advanceY
+
+    // Clean up
+    HarfBuzz.hb_buffer_reset(buffer)
+    HarfBuzz.hb_buffer_destroy(buffer)
+
+  end renderText
 
   /** Render a string to this renderer
     *
