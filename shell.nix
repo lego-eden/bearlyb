@@ -1,7 +1,7 @@
 # most of this code has been yoinked from the nixpkgs version of SDL, before they changed it to be statically built
 {
   pkgs ? import (
-    fetchTarball "https://github.com/NixOS/nixpkgs/archive/f6b44b2401525650256b977063dbcf830f762369.tar.gz"
+    fetchTarball "https://github.com/NixOS/nixpkgs/archive/00c21e4c93d963c50d4c0c89bfa84ed6e0694df2.tar.gz"
   ) {}
 }:
 let
@@ -81,7 +81,7 @@ in
     ) "-rpath ${lib.makeLibraryPath (dlopenBuildInputs)}";
 
     packages = with pkgs; [
-      jdk21
+      javaPackages.compiler.temurin-bin.jdk-25
       scala-next
       scala-cli
       metals
