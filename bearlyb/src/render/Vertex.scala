@@ -8,7 +8,7 @@ import org.lwjgl.sdl.SDL_Vertex
 case class Vertex[T](
     pos: Point[T],
     color: FColor,
-    texCoord: Point[T],
+    texCoord: Point[T]
 )
 object Vertex:
   extension [T: Numeric](v: Vertex[T])
@@ -29,4 +29,3 @@ object Vertex:
       (col.r, col.g, col.b, col.a),
       (texCoord.x, texCoord.y)
     )
-

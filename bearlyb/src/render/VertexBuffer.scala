@@ -16,7 +16,7 @@ object VertexBuffer:
       current.tex_coord.set(num.toFloat(tx), num.toFloat(ty))
 
     sdlVerts
-    
+
   extension (buf: VertexBuffer)
     private[bearlyb] def internal: SDL_Vertex.Buffer = buf
     def toSeq: Seq[Vertex[Float]] =

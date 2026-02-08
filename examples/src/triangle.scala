@@ -10,11 +10,25 @@ def triangle(): Unit =
   val (window, renderer) = bearlyb
     .createWindowAndRenderer("hello triangle!", w, h)
 
-  Using(VertexBuffer[Double](
-    Vertex(pos=(0.25*w, 0.75*h), color=(1f, 0f, 0f, 1f), texCoord=(0, 0)),
-    Vertex(pos=(0.50*w, 0.25*h), color=(0f, 1f, 0f, 1f), texCoord=(0, 0)),
-    Vertex(pos=(0.75*w, 0.75*h), color=(0f, 0f, 1f, 1f), texCoord=(0, 0)),
-  )){ verts =>
+  Using(
+    VertexBuffer[Double](
+      Vertex(
+        pos = (0.25 * w, 0.75 * h),
+        color = (1f, 0f, 0f, 1f),
+        texCoord = (0, 0)
+      ),
+      Vertex(
+        pos = (0.50 * w, 0.25 * h),
+        color = (0f, 1f, 0f, 1f),
+        texCoord = (0, 0)
+      ),
+      Vertex(
+        pos = (0.75 * w, 0.75 * h),
+        color = (0f, 0f, 1f, 1f),
+        texCoord = (0, 0)
+      )
+    )
+  ) { verts =>
 
     var running = true
     while running do
