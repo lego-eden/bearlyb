@@ -19,7 +19,8 @@ object bearlyb extends LwjglModule, PublishModule, ScalafixModule:
     url = "https://github.com/lego-eden/bearlyb",
     licenses = Seq(License.MIT),
     versionControl = VersionControl.github("lego-eden", "bearlyb"),
-    developers = Seq(Developer("lego-eden", "Hampus Edén", "https://github.com/lego-eden"))
+    developers =
+      Seq(Developer("lego-eden", "Hampus Edén", "https://github.com/lego-eden"))
   )
 
   val deps = Seq(mvn"com.lihaoyi::os-lib:0.11.4")
@@ -31,18 +32,18 @@ object bearlyb extends LwjglModule, PublishModule, ScalafixModule:
     "-Wall",
     "-Yexplicit-nulls",
     // "-Werror",
-    "-new-syntax",
+    "-new-syntax"
   )
 
   def bearlybPublishAssembly = Task:
     val base = lwjglAssembly()
     Assembly.create(
-      destJar = Task.dest/"out.jar",
+      destJar = Task.dest / "out.jar",
       inputPaths = localClasspath().map(_.path),
       manifest = JarManifest.MillDefault.add("Scala-Version" -> scalaVersion()),
-      base = Some(base),
+      base = Some(base)
     )
-  
+
   def jar = Task:
     val jar = bearlybPublishAssembly()
     jar.pathRef
@@ -59,12 +60,14 @@ object `bearlyb-vectors` extends BearlybModule, PublishModule, ScalafixModule:
   def publishVersion = "0.1.1"
 
   def pomSettings = PomSettings(
-    description = "A library to treat tuples as collections and mathematical vectors",
+    description =
+      "A library to treat tuples as collections and mathematical vectors",
     organization = "io.github.lego-eden",
     url = "https://github.com/lego-eden/bearlyb",
     licenses = Seq(License.MIT),
     versionControl = VersionControl.github("lego-eden", "bearlyb"),
-    developers = Seq(Developer("lego-eden", "Hampus Edén", "https://github.com/lego-eden"))
+    developers =
+      Seq(Developer("lego-eden", "Hampus Edén", "https://github.com/lego-eden"))
   )
 
 end `bearlyb-vectors`
@@ -94,7 +97,7 @@ trait LwjglModule extends BearlybModule:
     "macos",
     "windows-arm64",
     "windows",
-    "freebsd",
+    "freebsd"
   )
 
   def lwjglDep(lib: String, native: Option[String]): Dep =
@@ -103,7 +106,7 @@ trait LwjglModule extends BearlybModule:
       case None         => ""
 
     mvn"org.lwjgl:$lib:$version$clf"
-  
+
   def lwjglSource(lib: String): Dep =
     mvn"org.lwjgl:$lib:$version;classifier=sources"
 
@@ -128,14 +131,14 @@ trait LwjglModule extends BearlybModule:
     millResolver().classpath(
       deps = lwjglDeps() ++ runLwjglDeps(),
       sources = false,
-      artifactTypes = Some(artifactTypes()),
+      artifactTypes = Some(artifactTypes())
     )
 
   def lwjglAssembly = Task:
     Assembly.create(
-      destJar = Task.dest/"out.jar",
+      destJar = Task.dest / "out.jar",
       inputPaths = resolvedLwjglDeps().map(_.path),
-      manifest = JarManifest.MillDefault.add("Scala-Version" -> scalaVersion()),
+      manifest = JarManifest.MillDefault.add("Scala-Version" -> scalaVersion())
       // shader = AssemblyModule.jarjarabramsWorker()
     )
 
