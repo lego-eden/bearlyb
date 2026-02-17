@@ -1,4 +1,5 @@
-//| mill-version: 1.0.6
+//| mill-version: 1.1.1
+//| mill-jvm-version: system
 //| mvnDeps:
 //| - com.goyeau::mill-scalafix::0.6.0
 
@@ -7,7 +8,7 @@ import mill.*, scalalib.*, publish.*
 import mill.util.JarManifest
 
 trait BearlybModule extends ScalaModule:
-  final def scalaVersion = "3.7.3"
+  final def scalaVersion = "3.8.1"
 
 object bearlyb extends LwjglModule, PublishModule, ScalafixModule:
   def publishVersion = "0.1.3"
@@ -19,7 +20,11 @@ object bearlyb extends LwjglModule, PublishModule, ScalafixModule:
     licenses = Seq(License.MIT),
     versionControl = VersionControl.github("lego-eden", "bearlyb"),
     developers = Seq(
-      Developer("lego-eden", "Hampus Edén", "https://github.com/lego-eden"),
+      Developer(
+        "lego-eden",
+        "Hampus Edén",
+        "https://github.com/lego-eden"
+       ),
       Developer(
         "elongatedsquid",
         "Malte Axner",

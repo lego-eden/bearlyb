@@ -340,11 +340,30 @@ class Renderer private[render] (private[bearlyb] val internal: Long):
       scale: Float = 1.0f,
       src: Rect[T] | Null = null,
       dst: Rect[T] | Null = null
-  ): Unit = Using(stackPush()): stack =>
+  ): Unit = withStack:
     val (srcrect, dstrect) = (src, dst).vmap(_.floatInternal(stack))
     SDL_RenderTextureTiled(internal, tex.internal, srcrect, scale, dstrect)
       .sdlErrorCheck()
-  .get
+
+  def renderGeometry(
+      vertices: VertexBuffer,
+      tex: Texture | Null = null,
+      indices: Seq[Int] | Null = null
+  ): Unit = withStack:
+    val sdlVerts = vertices.internal
+    val sdlTex = tex match
+      case null       => null
+      case t: Texture => t.internal
+
+    val sdlIndices = indices match
+      case null     => null
+      case Seq(xs*) =>
+        val res = stack.callocInt(xs.size)
+        for (i, idx) <- xs.zipWithIndex do res.put(i, idx)
+        res
+
+    SDL_RenderGeometry(internal, sdlTex, sdlVerts, sdlIndices).sdlErrorCheck()
+  end renderGeometry
 
   def createTexture(
       format: PixelFormat,

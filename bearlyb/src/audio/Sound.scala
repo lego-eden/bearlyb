@@ -17,9 +17,9 @@ case class Sound(
     gain: Float = 1.0f,
     freqRatio: Float = 1.0f
 ):
-    // def apply(): Unit =
-    //   val s = Sound.emptyStream
-    //   on(s)
+  // def apply(): Unit =
+  //   val s = Sound.emptyStream
+  //   on(s)
 
   private def playOn(s: AudioStream, flush: Boolean): Unit =
     s.inputFormat = format
@@ -76,7 +76,6 @@ object Sound:
         val ioStream = SDL_IOFromConstMem(buf).sdlCreationCheck()
         loadhelper(SDL_LoadWAV_IO(ioStream, true, _, _, _))
       finally memFree(buf)
-
 
   private def createStream(dev: AudioDevice): AudioStream =
     val s = AudioStream()
@@ -167,7 +166,7 @@ object Sound:
 
   class Mixer private (
       private val dev: AudioDevice,
-      private val tracks: JQueue[AudioStream],
+      private val tracks: JQueue[AudioStream]
   ):
     private def emptyStream: AudioStream = findEmptyStream match
       case Some(track) => track
@@ -179,7 +178,6 @@ object Sound:
     private def findEmptyStream: Option[AudioStream] =
       val trackopt = tracks.stream().filter(s => s.available == 0).findFirst()
       Option(trackopt.orElse(null))
-
 
     def play(snd: Sound): Unit =
       snd.playOn(emptyStream, flush = true)
