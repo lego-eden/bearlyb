@@ -15,11 +15,25 @@ import scala.annotation.targetName
 import scala.util.Using
 
 import Point.*
+import org.lwjgl.util.freetype.FreeType
+import org.lwjgl.util.harfbuzz.HarfBuzz
 
 class Renderer private[render] (private[bearlyb] val internal: Long):
 
   lazy val name: String = SDL_GetRendererName(internal)
   lazy val window: Window = new Window(SDL_GetRenderWindow(internal))
+
+  private[bearlyb] var isFTInitialized = false
+  private[bearlyb] lazy val FTLib = withStack:
+    // --- Initialize FreeType and load font ---
+    val libraryBuf = stack.mallocPointer(1)
+    if FreeType.FT_Init_FreeType(libraryBuf) != 0 then
+      throw RuntimeException("FT_Init_FreeType failed")
+    isFTInitialized = true
+
+    org.lwjgl.system.Configuration.HARFBUZZ_LIBRARY_NAME.set("freetype")
+
+    libraryBuf.get(0)
 
   def isViewportSet: Boolean = SDL_RenderViewportSet(internal)
 
@@ -358,6 +372,105 @@ class Renderer private[render] (private[bearlyb] val internal: Long):
       h: Int
   ): Texture = Texture(this, format, access, w, h)
 
+  // ---------------- MSDF + HarfBuzz pipeline ----------------
+  def renderText(
+      font: Font,
+      text: String,
+      x: Float,
+      y: Float,
+      textSize: Long
+  ) =
+    font.setSize(textSize)
+
+    // --- Shape text with HarfBuzz ---
+    val buffer = HarfBuzz.hb_buffer_create()
+    HarfBuzz.hb_buffer_add_utf8(buffer, text, 0, -1)
+    HarfBuzz.hb_buffer_guess_segment_properties(buffer)
+
+    HarfBuzz.hb_shape(font.hbFontPtr, buffer, null)
+
+    val count = HarfBuzz.hb_buffer_get_length(buffer)
+    val infos = HarfBuzz.hb_buffer_get_glyph_infos(buffer)
+    val positions = HarfBuzz.hb_buffer_get_glyph_positions(buffer)
+
+    var penX = x
+    var penY = y
+
+    for i <- 0 until count do
+      val info = infos.get(i)
+      val pos = positions.get(i)
+      val glyphIndex = info.codepoint()
+
+      // Load glyph into FreeType
+      if FreeType.FT_Load_Glyph(
+          font.face,
+          glyphIndex,
+          FreeType.FT_LOAD_DEFAULT
+        ) != 0
+      then throw BearlybException(s"Failed to load glyph $glyphIndex")
+
+      FreeType.FT_Render_Glyph(
+        font.face.glyph(),
+        FreeType.FT_RENDER_MODE_NORMAL
+      )
+
+      val slot = font.face.glyph()
+      val bitmap = slot.bitmap()
+      val width = bitmap.width()
+      val rows = bitmap.rows()
+      val pitch = bitmap.pitch()
+
+      if width > 0 && rows > 0 then
+        val bufferPtr = bitmap.buffer(rows * pitch)
+
+        if bufferPtr != null && bufferPtr.remaining() >= rows * pitch then
+          val glyphTex = bearlyb.render.Texture(
+            this,
+            PixelFormat.RGBA8888,
+            TextureAccess.Streaming,
+            width,
+            rows
+          )
+
+          glyphTex.blendMode = BlendMode.Blend
+
+          Using.resource(glyphTex.lock()): tex_w =>
+            for row <- 0 until rows; col <- 0 until width do
+              val alpha = (bufferPtr.get(
+                row * pitch + col
+              ) & 0xff)
+
+              val (r, g, b, a) = drawColor
+
+              val finalAlpha =
+                ((alpha & 0xff) * (a & 0xff) / 255).toInt
+
+              val color = glyphTex.format.mapColor((r, g, b, finalAlpha))
+
+              tex_w(col, row) = color
+
+          val bearingX = slot.bitmap_left()
+          val bearingY = slot.bitmap_top()
+
+          val renderX = (penX + bearingX + (pos.x_offset >> 6)).toInt
+          val renderY = (penY - bearingY + (pos.y_offset >> 6)).toInt
+
+          renderTexture(
+            glyphTex,
+            dst = Rect(renderX, renderY, width, rows)
+          )
+
+      val advanceX = pos.x_advance() / 64.0f
+      val advanceY = pos.y_advance() / 64.0f
+
+      penX += advanceX
+      penY += advanceY
+
+    // Clean up
+    HarfBuzz.hb_buffer_destroy(buffer)
+
+  end renderText
+
   /** Render a string to this renderer
     *
     * This function has severe limitations:
@@ -387,6 +500,9 @@ object Renderer:
   given Using.Releasable[Renderer]:
 
     def release(resource: Renderer): Unit =
+      if resource.isFTInitialized then
+        FreeType.FT_Done_FreeType(resource.FTLib)
+        org.lwjgl.system.Configuration.HARFBUZZ_LIBRARY_NAME.set("")
       SDL_DestroyRenderer(resource.internal)
 
   enum LogicalPresentation:

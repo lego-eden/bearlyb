@@ -5,6 +5,7 @@ import bearlyb.rect.{Point, Rect}
 import bearlyb.surface.ScaleMode
 import bearlyb.util.*
 import bearlyb.vectors.Vec.*
+import bearlyb.video.BlendMode
 import bearlyb.video.imghelper
 import org.lwjgl.sdl.SDLPixels.*
 import org.lwjgl.sdl.SDLRender.*
@@ -19,7 +20,16 @@ class Texture private[bearlyb] (private[bearlyb] val internal: SDL_Texture):
 
   lazy val w: Int = internal.w
   lazy val h: Int = internal.h
-  lazy val format: PixelFormat = PixelFormat.fromInternal(internal.format)
+  lazy val format = PixelFormat.fromInternal(internal.format)
+
+  def blendMode: BlendMode = Using(stackPush()): stack =>
+    val mode = stack.mallocInt(1)
+    SDL_GetTextureBlendMode(internal, mode).sdlErrorCheck()
+    BlendMode.fromInternal(mode.get(0))
+  .get
+
+  def blendMode_=(mode: BlendMode): Unit =
+    SDL_SetTextureBlendMode(internal, mode.internal).sdlErrorCheck()
 
   private def internalFormat: SDL_PixelFormatDetails =
     SDL_GetPixelFormatDetails(internal.format)

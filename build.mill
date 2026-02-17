@@ -19,8 +19,18 @@ object bearlyb extends LwjglModule, PublishModule, ScalafixModule:
     url = "https://github.com/lego-eden/bearlyb",
     licenses = Seq(License.MIT),
     versionControl = VersionControl.github("lego-eden", "bearlyb"),
-    developers =
-      Seq(Developer("lego-eden", "Hampus Edén", "https://github.com/lego-eden"))
+    developers = Seq(
+      Developer(
+        "lego-eden",
+        "Hampus Edén",
+        "https://github.com/lego-eden"
+       ),
+      Developer(
+        "elongatedsquid",
+        "Malte Axner",
+        "https://github.com/elongatedsquid"
+      )
+    )
   )
 
   val deps = Seq(mvn"com.lihaoyi::os-lib:0.11.4")
@@ -85,6 +95,8 @@ trait LwjglModule extends BearlybModule:
 
   val lwjglLibs = "lwjgl" +: Seq(
     "sdl",
+    "freetype",
+    "harfbuzz",
     "stb"
   ).map("lwjgl-" + _)
 
