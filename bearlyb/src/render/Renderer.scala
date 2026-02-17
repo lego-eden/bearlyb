@@ -23,8 +23,8 @@ class Renderer private[render] (private[bearlyb] val internal: Long):
   lazy val name: String = SDL_GetRendererName(internal)
   lazy val window: Window = new Window(SDL_GetRenderWindow(internal))
 
-  var isFTInitialized = false
-  lazy val FTLib = withStack:
+  private[bearlyb] var isFTInitialized = false
+  private[bearlyb] lazy val FTLib = withStack:
     // --- Initialize FreeType and load font ---
     val libraryBuf = stack.mallocPointer(1)
     if FreeType.FT_Init_FreeType(libraryBuf) != 0 then

@@ -25,7 +25,7 @@ case class Font private[bearlyb] (
     FreeType.FT_Done_Face(face): Unit
 
 object Font:
-  def fromReadablePath(
+  def fromFile(
       renderer: Renderer,
       path: os.ReadablePath = os.resource / "fonts" / "JetBrainsMono.ttf",
       fontSize: Long = 19,
@@ -72,7 +72,7 @@ object Font:
       fontSize = fontSize
     )
 
-  def from_bytes(
+  def fromBytes(
       renderer: Renderer,
       fontBytes: Array[Byte],
       fontSize: Long = 19,

@@ -26,7 +26,7 @@ def textTest(): Unit =
     bearlyb.createWindowAndRenderer("Hello Text!", 960, 540)
 
   val font =
-    Font.fromReadablePath(
+    Font.fromFile(
       renderer,
       fontSize = 19,
       dpi = 64
