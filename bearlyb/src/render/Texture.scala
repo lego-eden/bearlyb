@@ -7,6 +7,7 @@ import bearlyb.util.*
 import bearlyb.vectors.Vec.*
 import bearlyb.video.BlendMode
 import bearlyb.video.imghelper
+import bearlyb.vectors.Vec.given
 import org.lwjgl.sdl.SDLPixels.*
 import org.lwjgl.sdl.SDLRender.*
 import org.lwjgl.sdl.{SDL_PixelFormatDetails, SDL_Texture}
@@ -70,6 +71,29 @@ class Texture private[bearlyb] (private[bearlyb] val internal: SDL_Texture):
 
   def unlock(): Unit = SDL_UnlockTexture(internal)
 
+  def colorMod: (r: Int, g: Int, b: Int) =
+    withStack:
+      val (r, g, b) = mallocMany(3, stack)
+      SDL_GetTextureColorMod(internal, r, g, b).sdlErrorCheck()
+      (r, g, b).vmap(_.get & 0xFF)
+
+  def colorMod_=(col: (r: Int, g: Int, b: Int)): Unit =
+    val (r, g, b) = col.toTuple.vmap(_.toByte)
+    SDL_SetTextureColorMod(internal, r, g, b).sdlErrorCheck();
+
+  def colorModFloat: (r: Float, g: Float, b: Float) =
+    withStack:
+      val (r, g, b) = mallocManyFloat(3, stack)
+      SDL_GetTextureColorModFloat(internal, r, g, b)
+      (r, g, b).vmap(_.get())
+
+  def colorModFloat_=(col: (r: Float, g: Float, b: Float)): Unit =
+    val (r, g, b) = col
+    SDL_SetTextureColorModFloat(internal, r, g, b).sdlErrorCheck()
+
+  def destroy(): Unit =
+    SDL_DestroyTexture(internal)
+
 end Texture
 
 object Texture:
@@ -109,10 +133,9 @@ object Texture:
       require(bpp == 8 || bpp == 16 || bpp == 32, s"Unknown bpp: $bpp")
 
       val idx = pos.y * pitch + pos.x * Bpp
-      Using(stackPush()): stack =>
+      withStack:
         val raw = stack.malloc(4).putInt(color.internal)
         for i <- 0 until Bpp do pixels.put(idx + i, raw.get(i))
-      .get
 
     end update
 
@@ -124,5 +147,3 @@ object Texture:
 
     given Releasable[Writer]:
       def release(writer: Writer): Unit = writer.tex.unlock()
-
-end Texture

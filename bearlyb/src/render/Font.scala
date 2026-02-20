@@ -15,19 +15,19 @@ case class Font private[bearlyb] (
     dpi: Int,
     fontSize: Long
 ):
-  def setSize(fontSize: Long = 19): Unit =
+  def setSize(fontSize: Long): Unit =
     if FreeType.FT_Set_Char_Size(face, 0, fontSize << 6, dpi, dpi) != 0 then
       throw RuntimeException("Failed to set char size")
     HarfBuzz.hb_ft_font_changed(hbFontPtr)
 
-  def destroy: Unit =
+  def destroy(): Unit =
     HarfBuzz.hb_font_destroy(hbFontPtr): Unit
     FreeType.FT_Done_Face(face): Unit
 
 object Font:
   def fromFile(
       renderer: Renderer,
-      path: os.ReadablePath = os.resource / "fonts" / "JetBrainsMono.ttf",
+      path: os.ReadablePath = os.resource / "JetBrainsMono.ttf",
       fontSize: Long = 19,
       dpi: Int = 72
   ): Font =

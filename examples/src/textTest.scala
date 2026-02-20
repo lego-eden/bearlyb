@@ -44,7 +44,7 @@ def textTest(): Unit =
     renderer.drawColor = (255, 255, 255, 255)
     renderer.clear()
 
-    renderer.drawColor = (0, 0, 0, 255)
+    renderer.drawColor = (255, 0, 0, 255)
     renderer.renderText(
       font,
       "Hello, World <- - ->",
@@ -56,7 +56,7 @@ def textTest(): Unit =
     renderer.present()
   end while
 
-  font.destroy
+  font.destroy()
 
   bl.quit()
 end textTest

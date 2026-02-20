@@ -17,6 +17,7 @@ import scala.util.Using
 import Point.*
 import org.lwjgl.util.freetype.FreeType
 import org.lwjgl.util.harfbuzz.HarfBuzz
+import bearlyb.pixels.RawColor
 
 class Renderer private[render] (private[bearlyb] val internal: Long):
 
@@ -372,7 +373,6 @@ class Renderer private[render] (private[bearlyb] val internal: Long):
       h: Int
   ): Texture = Texture(this, format, access, w, h)
 
-  // ---------------- MSDF + HarfBuzz pipeline ----------------
   def renderText(
       font: Font,
       text: String,
@@ -424,7 +424,7 @@ class Renderer private[render] (private[bearlyb] val internal: Long):
         val bufferPtr = bitmap.buffer(rows * pitch)
 
         if bufferPtr != null && bufferPtr.remaining() >= rows * pitch then
-          val glyphTex = bearlyb.render.Texture(
+          val glyphTex = Texture(
             this,
             PixelFormat.RGBA8888,
             TextureAccess.Streaming,
@@ -433,21 +433,16 @@ class Renderer private[render] (private[bearlyb] val internal: Long):
           )
 
           glyphTex.blendMode = BlendMode.Blend
+          glyphTex.colorMod = drawColor.swizzle(0,1,2)
 
-          Using.resource(glyphTex.lock()): tex_w =>
+          Using.resource(glyphTex.lock()): glyphWriter =>
             for row <- 0 until rows; col <- 0 until width do
               val alpha = (bufferPtr.get(
                 row * pitch + col
-              ) & 0xff)
+              ) & 0xFF)
 
-              val (r, g, b, a) = drawColor
-
-              val finalAlpha =
-                ((alpha & 0xff) * (a & 0xff) / 255).toInt
-
-              val color = glyphTex.format.mapColor((r, g, b, finalAlpha))
-
-              tex_w(col, row) = color
+              glyphWriter(col, row) = RawColor(0xFFFFFF00 | alpha)
+            end for
 
           val bearingX = slot.bitmap_left()
           val bearingY = slot.bitmap_top()
@@ -459,6 +454,10 @@ class Renderer private[render] (private[bearlyb] val internal: Long):
             glyphTex,
             dst = Rect(renderX, renderY, width, rows)
           )
+
+          glyphTex.destroy()
+        end if
+      end if
 
       val advanceX = pos.x_advance() / 64.0f
       val advanceY = pos.y_advance() / 64.0f
