@@ -17,3 +17,5 @@ def createWindowAndRenderer(
   SDL_CreateWindowAndRenderer(title, width, height, flags, window, renderer)
     .sdlErrorCheck()
   (new Window(window.get(0)), new Renderer(renderer.get(0)))
+
+inline val DefaultDPI = 72

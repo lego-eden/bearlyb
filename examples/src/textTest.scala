@@ -25,12 +25,7 @@ def textTest(): Unit =
   val (window, renderer) =
     bearlyb.createWindowAndRenderer("Hello Text!", 960, 540)
 
-  val font =
-    Font.fromFile(
-      renderer,
-      fontSize = 19,
-      dpi = 64
-    )
+  val font = Font.defaultMono
 
   var running = true
   while running do
@@ -50,7 +45,8 @@ def textTest(): Unit =
       "Hello, World <- - ->",
       25,
       100,
-      79
+      16,
+      dpi = 96
     )
 
     renderer.present()

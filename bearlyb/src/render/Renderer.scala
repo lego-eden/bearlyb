@@ -24,18 +24,6 @@ class Renderer private[render] (private[bearlyb] val internal: Long):
   lazy val name: String = SDL_GetRendererName(internal)
   lazy val window: Window = new Window(SDL_GetRenderWindow(internal))
 
-  private[bearlyb] var isFTInitialized = false
-  private[bearlyb] lazy val FTLib = withStack:
-    // --- Initialize FreeType and load font ---
-    val libraryBuf = stack.mallocPointer(1)
-    if FreeType.FT_Init_FreeType(libraryBuf) != 0 then
-      throw RuntimeException("FT_Init_FreeType failed")
-    isFTInitialized = true
-
-    org.lwjgl.system.Configuration.HARFBUZZ_LIBRARY_NAME.set("freetype")
-
-    libraryBuf.get(0)
-
   def isViewportSet: Boolean = SDL_RenderViewportSet(internal)
 
   def viewport: Rect[Int] = withStack:
@@ -378,9 +366,10 @@ class Renderer private[render] (private[bearlyb] val internal: Long):
       text: String,
       x: Float,
       y: Float,
-      textSize: Long
+      textSize: Long,
+      dpi: Int = DefaultDPI,
   ) =
-    font.setSize(textSize)
+    font.setSize(textSize, dpi)
 
     // --- Shape text with HarfBuzz ---
     val buffer = HarfBuzz.hb_buffer_create()
@@ -497,11 +486,7 @@ object Renderer:
     new Renderer(SDL_CreateRenderer(window.internal, "").sdlCreationCheck())
 
   given Using.Releasable[Renderer]:
-
     def release(resource: Renderer): Unit =
-      if resource.isFTInitialized then
-        FreeType.FT_Done_FreeType(resource.FTLib)
-        org.lwjgl.system.Configuration.HARFBUZZ_LIBRARY_NAME.set("")
       SDL_DestroyRenderer(resource.internal)
 
   enum LogicalPresentation:
