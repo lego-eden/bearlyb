@@ -43,9 +43,9 @@ def textTest(): Unit =
     renderer.renderText(
       font,
       "Hello World!",
-      25,
-      100,
-      48,
+      x = 25,
+      y = 100,
+      textSize = 48,
       dpi = 96
     )
 
