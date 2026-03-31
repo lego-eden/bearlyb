@@ -133,13 +133,8 @@ object Font:
       throw RuntimeException("FT_Init_FreeType failed")
 
     val ft = libraryBuf.get(0)
-    val shutdown = Thread
-      .ofVirtual()
-      .unstarted(() =>
-        assert(FreeType.FT_Done_FreeType(ft) == 0)
-        Console.err.println("unloaded freetype")
-      )
-    Runtime.getRuntime().addShutdownHook(shutdown)
+    bearlyb.initialize.addShutdownHook:
+      assert(FreeType.FT_Done_FreeType(ft) == 0)
 
     ft
   end FTLib
