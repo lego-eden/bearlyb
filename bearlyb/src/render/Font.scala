@@ -7,6 +7,7 @@ import org.lwjgl.BufferUtils
 import org.lwjgl.util.freetype.FreeType
 import org.lwjgl.util.harfbuzz.HarfBuzz
 import java.nio.ByteBuffer
+import bearlyb.BearlybException
 
 class Font private[bearlyb] (
     private[bearlyb] val face: FT_Face,
@@ -55,11 +56,52 @@ class Font private[bearlyb] (
 
     val count = HarfBuzz.hb_buffer_get_length(buffer)
     val positions = HarfBuzz.hb_buffer_get_glyph_positions(buffer)
+    val infos = HarfBuzz.hb_buffer_get_glyph_infos(buffer)
 
     var width = 0L
     for i <- 0 until count do
       val pos = positions.get(i)
-      width += pos.x_advance()
+      if i == 0 || i == count - 1 then
+
+        val info = infos.get(i)
+        val glyphIndex = info.codepoint()
+
+        // Load glyph into FreeType
+        if FreeType.FT_Load_Glyph(
+            face,
+            glyphIndex,
+            FreeType.FT_LOAD_DEFAULT | FreeType.FT_LOAD_COLOR
+          ) != 0
+        then throw BearlybException(s"Failed to load glyph $glyphIndex")
+
+        val slot = face.glyph()
+        val ret = FreeType.FT_Render_Glyph(
+          face.glyph(),
+          FreeType.FT_RENDER_MODE_NORMAL
+        )
+        if ret == FreeType.FT_Err_Missing_SVG_Hooks then
+          throw BearlybException(
+            "Cannot render emojis and other SVG's, maybe this will be supported by bearlyb in the future"
+          )
+        else if ret != 0 then
+          throw BearlybException(
+            s"Failed to render glyph: ${FreeType.FT_Error_String(ret)}"
+          )
+
+        val bitmap = slot.bitmap()
+        val bearingX = slot.bitmap_left()
+        val bitmapW = bitmap.width()
+
+        if i == 0 && bearingX < 0 then
+          width -= bearingX.toLong << 6
+
+        if i == count - 1 then
+          width += (bitmapW.toLong << 6) max pos.x_advance().toLong
+        else
+          width += pos.x_advance()
+      else
+        width += pos.x_advance()
+    end for
 
     // Clean up
     HarfBuzz.hb_buffer_destroy(buffer)

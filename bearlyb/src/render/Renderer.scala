@@ -366,7 +366,7 @@ class Renderer private[render] (private[bearlyb] val internal: Long):
       y: Float,
       textSize: Long,
       dpi: Int = DefaultDPI
-  ) =
+  ): Unit =
     font.setSize(textSize, dpi)
     val ascender = font.face.size().metrics().ascender()
 
@@ -381,7 +381,7 @@ class Renderer private[render] (private[bearlyb] val internal: Long):
     val infos = HarfBuzz.hb_buffer_get_glyph_infos(buffer)
     val positions = HarfBuzz.hb_buffer_get_glyph_positions(buffer)
 
-    var (penX, penY) = (x, y+ascender.toFloat/64.0f)
+    var (penX, penY) = ((x*64f).toLong, (y*64f).toLong + ascender)
 
     for i <- 0 until count do
       val info = infos.get(i)
@@ -439,26 +439,24 @@ class Renderer private[render] (private[bearlyb] val internal: Long):
               glyphWriter(col, row) = RawColor(0xffffff00 | alpha)
             end for
 
-          val bearingX = slot.bitmap_left().toFloat
-          val bearingY = slot.bitmap_top().toFloat
+          val bearingX = slot.bitmap_left().toLong << 6L
+          val bearingY = slot.bitmap_top().toLong << 6L
+          if i == 0 && bearingX < 0 then penX -= bearingX
 
-          val renderX = penX + bearingX + (pos.x_offset.toFloat / 64.0f)
-          val renderY = penY - bearingY + (pos.y_offset.toFloat / 64.0f)
+          val renderX = penX + bearingX + pos.x_offset.toLong
+          val renderY = penY - bearingY + pos.y_offset.toLong
 
           renderTexture(
             glyphTex,
-            dst = Rect(renderX, renderY, width.toFloat, rows.toFloat)
+            dst = Rect(renderX.toFloat/64.0f, renderY.toFloat/64.0f, width.toFloat, rows.toFloat)
           )
 
           glyphTex.destroy()
         end if
       end if
 
-      val advanceX = pos.x_advance().toFloat / 64.0f
-      val advanceY = pos.y_advance().toFloat / 64.0f
-
-      penX += advanceX
-      penY += advanceY
+      penX += pos.x_advance()
+      penY += pos.y_advance()
 
     // Clean up
     HarfBuzz.hb_buffer_destroy(buffer)
