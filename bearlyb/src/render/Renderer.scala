@@ -367,58 +367,16 @@ class Renderer private[render] (private[bearlyb] val internal: Long):
       textSize: Long,
       dpi: Int = DefaultDPI
   ): Unit =
-    font.setSize(textSize, dpi)
     val ascender = font.face.size().metrics().ascender()
-
-    // --- Shape text with HarfBuzz ---
-    val buffer = HarfBuzz.hb_buffer_create()
-    HarfBuzz.hb_buffer_add_utf8(buffer, text, 0, -1)
-    HarfBuzz.hb_buffer_guess_segment_properties(buffer)
-
-    HarfBuzz.hb_shape(font.hbFontPtr, buffer, null)
-
-    val count = HarfBuzz.hb_buffer_get_length(buffer)
-    val infos = HarfBuzz.hb_buffer_get_glyph_infos(buffer)
-    val positions = HarfBuzz.hb_buffer_get_glyph_positions(buffer)
-
     var (penX, penY) = ((x*64f).toLong, (y*64f).toLong + ascender)
 
-    for i <- 0 until count do
-      val info = infos.get(i)
-      val pos = positions.get(i)
-      val glyphIndex = info.codepoint()
+    font.foreachGlyph(text, textSize, dpi){ (i, _, pos, info) =>
 
-      // Load glyph into FreeType
-      if FreeType.FT_Load_Glyph(
-          font.face,
-          glyphIndex,
-          FreeType.FT_LOAD_DEFAULT | FreeType.FT_LOAD_COLOR
-        ) != 0
-      then throw BearlybException(s"Failed to load glyph $glyphIndex")
-
-      val slot = font.face.glyph()
-      val ret = FreeType.FT_Render_Glyph(
-        font.face.glyph(),
-        FreeType.FT_RENDER_MODE_NORMAL
-      )
-      if ret == FreeType.FT_Err_Missing_SVG_Hooks then
-        throw BearlybException(
-          "Cannot render emojis and other SVG's, maybe this will be supported by bearlyb in the future"
-        )
-      else if ret != 0 then
-        throw BearlybException(
-          s"Failed to render glyph: ${FreeType.FT_Error_String(ret)}"
-        )
-
-      val bitmap = slot.bitmap()
-      val width = bitmap.width()
-      val rows = bitmap.rows()
-      val pitch = bitmap.pitch()
+      val (bitmap, bitmapLeft, bitmapTop, width, rows, pitch) =
+        font.renderGlyph(info)
 
       if width > 0 && rows > 0 then
-        val bufferPtr = bitmap.buffer(rows * pitch)
-
-        if bufferPtr != null && bufferPtr.remaining() >= rows * pitch then
+        if bitmap != null && bitmap.remaining() >= rows * pitch then
           val glyphTex = Texture(
             this,
             PixelFormat.RGBA8888,
@@ -432,15 +390,15 @@ class Renderer private[render] (private[bearlyb] val internal: Long):
 
           Using.resource(glyphTex.lock()): glyphWriter =>
             for row <- 0 until rows; col <- 0 until width do
-              val alpha = (bufferPtr.get(
+              val alpha = (bitmap.get(
                 row * pitch + col
               ) & 0xff)
 
               glyphWriter(col, row) = RawColor(0xffffff00 | alpha)
             end for
 
-          val bearingX = slot.bitmap_left().toLong << 6L
-          val bearingY = slot.bitmap_top().toLong << 6L
+          val bearingX = bitmapLeft.toLong << 6L
+          val bearingY = bitmapTop.toLong << 6L
           if i == 0 && bearingX < 0 then penX -= bearingX
 
           val renderX = penX + bearingX + pos.x_offset.toLong
@@ -457,10 +415,7 @@ class Renderer private[render] (private[bearlyb] val internal: Long):
 
       penX += pos.x_advance()
       penY += pos.y_advance()
-
-    // Clean up
-    HarfBuzz.hb_buffer_destroy(buffer)
-
+    }
   end renderText
 
   /** Render a string to this renderer

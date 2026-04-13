@@ -8,6 +8,8 @@ import org.lwjgl.util.freetype.FreeType
 import org.lwjgl.util.harfbuzz.HarfBuzz
 import java.nio.ByteBuffer
 import bearlyb.BearlybException
+import org.lwjgl.util.harfbuzz.hb_glyph_info_t
+import org.lwjgl.util.harfbuzz.hb_glyph_position_t
 
 class Font private[bearlyb] (
     private[bearlyb] val face: FT_Face,
@@ -18,6 +20,49 @@ class Font private[bearlyb] (
     if FreeType.FT_Set_Char_Size(face, 0, textSize << 6, dpi, dpi) != 0 then
       throw RuntimeException("Failed to set char size")
     HarfBuzz.hb_ft_font_changed(hbFontPtr)
+
+  private[bearlyb] def renderGlyph(
+      info: hb_glyph_info_t
+  ): (
+      bitmap: ByteBuffer,
+      bitmapLeft: Int,
+      bitmapTop: Int,
+      width: Int,
+      height: Int,
+      pitch: Int
+  ) =
+    val glyphIndex = info.codepoint()
+
+    // Load glyph into FreeType
+    if FreeType.FT_Load_Glyph(
+        face,
+        glyphIndex,
+        FreeType.FT_LOAD_DEFAULT | FreeType.FT_LOAD_COLOR
+      ) != 0
+    then throw BearlybException(s"Failed to load glyph $glyphIndex")
+
+    val slot = face.glyph()
+    val ret = FreeType.FT_Render_Glyph(
+      face.glyph(),
+      FreeType.FT_RENDER_MODE_NORMAL
+    )
+    if ret == FreeType.FT_Err_Missing_SVG_Hooks then
+      throw BearlybException(
+        "Cannot render emojis and other SVG's, maybe this will be supported by bearlyb in the future"
+      )
+    else if ret != 0 then
+      throw BearlybException(
+        s"Failed to render glyph: ${FreeType.FT_Error_String(ret)}"
+      )
+
+    val bitmap = slot.bitmap()
+    val width = bitmap.width()
+    val rows = bitmap.rows()
+    val pitch = bitmap.pitch()
+
+    (bitmap.buffer(rows * pitch), slot.bitmap_left(), slot.bitmap_top(), width, rows, pitch)
+  end renderGlyph
+    
 
   def metrics(
       textSize: Long,
@@ -37,14 +82,13 @@ class Font private[bearlyb] (
     val metrics = face.size.metrics
     (metrics.ascender - metrics.descender).toFloat / 64.0f
 
-  def measure(
+  private[bearlyb] def foreachGlyph(
       text: String,
       textSize: Long,
-      dpi: Int = DefaultDPI
-  ): (
-      width: Float,
-      height: Float
-  ) =
+      dpi: Int
+  )(
+      body: (Int, Int, hb_glyph_position_t, hb_glyph_info_t) => Unit
+  ): Unit =
     setSize(textSize, dpi)
 
     // --- Shape text with HarfBuzz ---
@@ -58,39 +102,24 @@ class Font private[bearlyb] (
     val positions = HarfBuzz.hb_buffer_get_glyph_positions(buffer)
     val infos = HarfBuzz.hb_buffer_get_glyph_infos(buffer)
 
-    var width = 0L
     for i <- 0 until count do
-      val pos = positions.get(i)
+      body(i, count, positions.get(i), infos.get(i))
+
+    HarfBuzz.hb_buffer_destroy(buffer)
+  end foreachGlyph
+
+  def measure(
+      text: String,
+      textSize: Long,
+      dpi: Int = DefaultDPI
+  ): (
+      width: Float,
+      height: Float
+  ) =
+    var width = 0L
+    foreachGlyph(text, textSize, dpi){ (i, count, pos, info) =>
       if i == 0 || i == count - 1 then
-
-        val info = infos.get(i)
-        val glyphIndex = info.codepoint()
-
-        // Load glyph into FreeType
-        if FreeType.FT_Load_Glyph(
-            face,
-            glyphIndex,
-            FreeType.FT_LOAD_DEFAULT | FreeType.FT_LOAD_COLOR
-          ) != 0
-        then throw BearlybException(s"Failed to load glyph $glyphIndex")
-
-        val slot = face.glyph()
-        val ret = FreeType.FT_Render_Glyph(
-          face.glyph(),
-          FreeType.FT_RENDER_MODE_NORMAL
-        )
-        if ret == FreeType.FT_Err_Missing_SVG_Hooks then
-          throw BearlybException(
-            "Cannot render emojis and other SVG's, maybe this will be supported by bearlyb in the future"
-          )
-        else if ret != 0 then
-          throw BearlybException(
-            s"Failed to render glyph: ${FreeType.FT_Error_String(ret)}"
-          )
-
-        val bitmap = slot.bitmap()
-        val bearingX = slot.bitmap_left()
-        val bitmapW = bitmap.width()
+        val (_, bearingX, _, bitmapW, _, _) = renderGlyph(info)
 
         if i == 0 && bearingX < 0 then
           width -= bearingX.toLong << 6
@@ -101,11 +130,7 @@ class Font private[bearlyb] (
           width += pos.x_advance()
       else
         width += pos.x_advance()
-    end for
-
-    // Clean up
-    HarfBuzz.hb_buffer_destroy(buffer)
-
+    }
     (width.toFloat / 64.0f, glyphHeight(textSize, dpi))
 
   def destroy(): Unit =
