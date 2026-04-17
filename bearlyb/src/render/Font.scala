@@ -128,6 +128,17 @@ class Font private[bearlyb] (
     }
     (width.toFloat / 64.0f, glyphHeight)
 
+  private[bearlyb] def advanceOf_26Dot6(text: String): Long =
+    var width = 0l
+    foreachGlyph(text){ (i, count, pos, info) =>
+      width += pos.x_advance()
+    }
+    width
+
+  def advanceOf(text: String): Float =
+    advanceOf_26Dot6(text).toFloat / 64.0f
+
+
   def copy(textSize: Float = textSize, dpi: Int = dpi): Font =
     new Font(
       face,

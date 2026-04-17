@@ -18,6 +18,7 @@ import Point.*
 import org.lwjgl.util.freetype.FreeType
 import org.lwjgl.util.harfbuzz.HarfBuzz
 import bearlyb.pixels.RawColor
+import scala.collection.mutable.Buffer
 
 class Renderer private[render] (private[bearlyb] val internal: Long):
 
@@ -359,7 +360,7 @@ class Renderer private[render] (private[bearlyb] val internal: Long):
       h: Int
   ): Texture = Texture(this, format, access, w, h)
 
-  def renderText(
+  def renderSingleLineText(
       font: Font,
       text: String,
       x: Float,
@@ -368,7 +369,7 @@ class Renderer private[render] (private[bearlyb] val internal: Long):
     val ascender = font.face.size().metrics().ascender()
     var (penX, penY) = ((x*64f).toLong, (y*64f).toLong + ascender)
 
-    font.foreachGlyph(text){ (i, _, pos, info) =>
+    font.foreachGlyph(text) { (i, _, pos, info) =>
 
       val (bitmap, bitmapLeft, bitmapTop, width, rows, pitch) =
         font.renderGlyph(info)
@@ -414,6 +415,44 @@ class Renderer private[render] (private[bearlyb] val internal: Long):
       penX += pos.x_advance()
       penY += pos.y_advance()
     }
+
+  def renderText(
+      font: Font,
+      text: String,
+      x: Float,
+      y: Float,
+      maxWidth: Float = 0f,
+  ): Unit =
+    if maxWidth > 0 then
+      var width = 0L
+      var currentWordLength = 0L
+      val (_, _, lineHeight) = font.metrics
+      var penY = y
+      val maxWidth26Dot6 = (maxWidth*64f).toLong
+      var (sliceFrom, sliceUntil) = (0, 0)
+
+      font.foreachGlyph(text) { (i, count, pos, info) =>
+        if text.charAt(info.cluster) == ' ' then
+          sliceUntil = info.cluster
+          currentWordLength = 0L
+        else
+          currentWordLength += pos.x_advance
+        
+        width += pos.x_advance
+        if width > maxWidth26Dot6 then
+          // line break
+          renderSingleLineText(font, text.slice(sliceFrom, sliceUntil), x, penY)
+          sliceFrom = sliceUntil+1
+          sliceUntil = sliceFrom
+          penY += lineHeight
+          width = currentWordLength
+
+        if i == count then
+          // reached the end
+          renderSingleLineText(font, text.slice(sliceFrom, text.length()), x, penY)
+      }
+    else
+      renderSingleLineText(font, text, x, y)
   end renderText
 
   /** Render a string to this renderer
