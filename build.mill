@@ -1,4 +1,4 @@
-//| mill-version: 1.1.5
+//| mill-version: 1.1.6
 //| mill-jvm-version: system
 //| mvnDeps:
 //| - com.goyeau::mill-scalafix::0.6.0
@@ -9,10 +9,10 @@ import mill.util.JarManifest
 import mill.api.Task.Simple
 
 trait BearlybModule extends ScalaModule:
-  final def scalaVersion = "3.8.1"
+  final def scalaVersion = "3.8.3"
 
 object bearlyb extends LwjglModule, PublishModule, ScalafixModule:
-  def publishVersion = "0.2.4"
+  def publishVersion = "0.2.5"
 
   def pomSettings = PomSettings(
     description = "A scala game library",
@@ -34,7 +34,7 @@ object bearlyb extends LwjglModule, PublishModule, ScalafixModule:
     )
   )
 
-  val deps = Seq(mvn"com.lihaoyi::os-lib:0.11.4")
+  val deps = Seq(mvn"com.lihaoyi::os-lib:0.11.8")
   def moduleDeps = Seq(`bearlyb-vectors`)
   def mvnDeps = super.mvnDeps() ++ deps
   def runMvnDeps = super.runMvnDeps()
@@ -43,7 +43,7 @@ object bearlyb extends LwjglModule, PublishModule, ScalafixModule:
     "-Wall",
     "-Yexplicit-nulls",
     // "-Werror",
-    "-new-syntax"
+    "-new-syntax",
   )
 
   def bearlybPublishAssembly = Task:
@@ -67,7 +67,15 @@ object bearlyb extends LwjglModule, PublishModule, ScalafixModule:
 end bearlyb
 
 object `bearlyb-vectors` extends BearlybModule, PublishModule, ScalafixModule:
-  def publishVersion = "0.1.1"
+  def publishVersion = "0.1.2"
+
+  def scalacOptions = Seq(
+    "-deprecation",
+    "-Wall",
+    "-Yexplicit-nulls",
+    // "-Werror",
+    "-new-syntax",
+  )
 
   def pomSettings = PomSettings(
     description =

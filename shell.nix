@@ -81,11 +81,8 @@ in
     ) "-rpath ${lib.makeLibraryPath (dlopenBuildInputs)}";
 
     packages = with pkgs; [
-      javaPackages.compiler.temurin-bin.jdk-25
-      scala-next
-      scala-cli
       metals
-      (callPackage ./nix-packages/mill/package.nix { })
+      (callPackage ./nix-packages/mill/package.nix {})
       coursier
     ];
   }
