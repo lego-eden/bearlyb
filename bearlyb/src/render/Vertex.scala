@@ -1,9 +1,12 @@
 package bearlyb.render
 
 import bearlyb.rect.Point, Point.*
+import bearlyb.vectors.Vec, Vec.given
 import bearlyb.pixels.{FColor, Color}
+
 import org.lwjgl.system.MemoryStack
 import org.lwjgl.sdl.SDL_Vertex
+
 import scala.annotation.publicInBinary
 
 case class Vertex[T](
@@ -39,3 +42,7 @@ object Vertex:
       (col.r, col.g, col.b, col.a),
       (texCoord.x, texCoord.y)
     )
+
+  def zero[T: Numeric as num]: Vertex[T] =
+    val orig = Vec.fill(2)(num.zero)
+    Vertex(orig, (0f,0f,0f,0f), orig)
