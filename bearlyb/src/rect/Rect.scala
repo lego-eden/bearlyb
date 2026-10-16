@@ -280,7 +280,7 @@ object Rect:
         // More complicated Cohen-Sutherland algorithm
         var (x1tmp, y1tmp, x2tmp, y2tmp) = (x1, y1, x2, y2)
         var (x: T, y: T) = (num.zero, num.zero)
-        var outcode1 = computeOutcode(x1, x2)
+        var outcode1 = computeOutcode(x1, y1)
         var outcode2 = computeOutcode(x2, y2)
         while (outcode1 != 0) || (outcode2 != 0) do
           if (outcode1 & outcode2) != 0 then break(None)

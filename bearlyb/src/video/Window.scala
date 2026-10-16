@@ -32,16 +32,33 @@ class Window private[bearlyb] (
     val (width, height) = pos
     SDL_SetWindowPosition(internal, width, height).sdlErrorCheck()
 
-  def size: (width: Int, height: Int) = Using(stackPush()): stack =>
-    val pWidth = stack.mallocInt(1)
-    val pHeight = stack.mallocInt(1)
+  def size: (width: Int, height: Int) =  withStack:
+    val (pWidth, pHeight) = mallocManyInt(2, stack)
     SDL_GetWindowSize(internal, pWidth, pHeight)
       .sdlErrorCheck((pWidth.get(0), pHeight.get(0)))
-  .get
+
 
   def size_=(dim: (width: Int, height: Int)): Unit =
     val (width, height) = dim
     SDL_SetWindowSize(internal, width, height).sdlErrorCheck()
+
+  def minimumSize: (width: Int, height: Int) = withStack:
+    val (pWidth, pHeight) = mallocManyInt(2, stack)
+    SDL_GetWindowMinimumSize(internal, pWidth, pHeight)
+      .sdlErrorCheck((pWidth.get(0), pHeight.get(0)))
+
+  def minimumSize_=(dim: (width: Int, height: Int)): Unit =
+    val (width, height) = dim
+    SDL_SetWindowMinimumSize(internal, width, height).sdlErrorCheck()
+
+  def maximumSize: (width: Int, height: Int) = withStack:
+    val (pWidth, pHeight) = mallocManyInt(2, stack)
+    SDL_GetWindowMaximumSize(internal, pWidth, pHeight)
+      .sdlErrorCheck((pWidth.get(0), pHeight.get(0)))
+
+  def maximumSize_=(dim: (width: Int, height: Int)): Unit =
+    val (width, height) = dim
+    SDL_SetWindowMaximumSize(internal, width, height).sdlErrorCheck()
 
   def sizeInPixels: (width: Int, height: Int) = Using(stackPush()): stack =>
     val pWidth = stack.mallocInt(1)
